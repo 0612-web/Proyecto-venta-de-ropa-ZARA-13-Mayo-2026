@@ -1,0 +1,303 @@
+Perfecto. A continuación te presento **todas las entidades (tablas)** que Claude (el asistente) proporcionó en el diagrama anterior, **numeradas** y adaptadas al negocio de venta de ropa "Zara Clone" con su estructura completa para Firestore.
+
+---
+
+## 📊 ENTIDADES DEL NEGOCIO (8 tablas principales)
+
+---
+
+### **1. CLIENTE** 
+**Propósito:** Almacena los datos de los usuarios registrados que compran en la tienda.
+
+| Campo | Tipo | Descripción | En Firestore |
+|-------|------|-------------|---------------|
+| `uuid` | string (PK) | Identificador único del cliente | Document ID |
+| `nombre` | string | Nombre completo | `nombre` |
+| `email` | string | Correo electrónico (único) | `email` |
+| `telefono` | string | Número de teléfono | `telefono` |
+| `direccion` | string | Dirección principal | `direccion` |
+| `fecha_registro` | date | Fecha de creación de cuenta | `fecha_registro` (Timestamp) |
+| `rol` | string | "cliente" o "admin" | `rol` |
+
+**Ejemplo en Firestore:**
+```json
+{
+  "nombre": "Ana García López",
+  "email": "ana.garcia@email.com",
+  "telefono": "+34123456789",
+  "direccion": "Calle Mayor 45, Madrid, 28013",
+  "fecha_registro": Timestamp(2025, 3, 15),
+  "rol": "cliente"
+}
+```
+
+---
+
+### **2. PRODUCTO**
+**Propósito:** Representa el artículo en términos generales (ej. "Camisa Oxford").
+
+| Campo | Tipo | Descripción | En Firestore |
+|-------|------|-------------|---------------|
+| `uuid` | string (PK) | Identificador único del producto | Document ID |
+| `categoria_id` | string (FK) | Referencia a la categoría | `categoria_id` |
+| `proveedor_id` | string (FK) | Referencia al proveedor | `proveedor_id` |
+| `nombre` | string | Nombre del producto | `nombre` |
+| `descripcion` | string | Descripción detallada | `descripcion` |
+| `precio_base` | decimal | Precio base sin impuestos | `precio_base` |
+| `activo` | boolean | Si está visible en tienda | `activo` |
+| `imagenes` | array | URLs de imágenes en Storage | `imagenes` |
+| `created_at` | timestamp | Fecha de creación | `created_at` |
+
+**Ejemplo en Firestore:**
+```json
+{
+  "nombre": "Camisa Oxford Slim Fit",
+  "descripcion": "Camisa de algodón egipcio, corte slim, botones de nacar",
+  "precio_base": 39.99,
+  "categoria_id": "cat_camisas_hombre",
+  "proveedor_id": "prov_textiles_sa",
+  "activo": true,
+  "imagenes": ["https://storage.../camisa1.jpg", "https://storage.../camisa2.jpg"],
+  "created_at": Timestamp(2025, 1, 10)
+}
+```
+
+---
+
+### **3. CATEGORIA**
+**Propósito:** Permite jerarquías (Ropa > Hombre > Camisas) gracias al campo `categoria_padre_id` autorreferencial.
+
+| Campo | Tipo | Descripción | En Firestore |
+|-------|------|-------------|---------------|
+| `uuid` | string (PK) | Identificador único de categoría | Document ID |
+| `nombre` | string | Nombre de la categoría | `nombre` |
+| `categoria_padre_id` | string (FK) | Referencia a categoría padre (null = raíz) | `categoria_padre_id` |
+| `imagen_url` | string | URL de imagen representativa | `imagen_url` |
+| `orden` | int | Orden de visualización | `orden` |
+
+**Ejemplo en Firestore:**
+```json
+// Categoría raíz
+{
+  "nombre": "Hombre",
+  "categoria_padre_id": null,
+  "imagen_url": "https://storage.../hombre.jpg",
+  "orden": 1
+}
+
+// Subcategoría
+{
+  "nombre": "Camisas",
+  "categoria_padre_id": "cat_hombre_root",
+  "imagen_url": "https://storage.../camisas.jpg",
+  "orden": 2
+}
+```
+
+---
+
+### **4. PROVEEDOR**
+**Propósito:** Rastrea de dónde viene cada producto para gestión de inventario y logística.
+
+| Campo | Tipo | Descripción | En Firestore |
+|-------|------|-------------|---------------|
+| `uuid` | string (PK) | Identificador único del proveedor | Document ID |
+| `nombre` | string | Nombre de la empresa proveedora | `nombre` |
+| `contacto` | string | Persona de contacto | `contacto` |
+| `pais` | string | País de origen | `pais` |
+| `email` | string | Correo del proveedor | `email` |
+| `telefono` | string | Teléfono de contacto | `telefono` |
+
+**Ejemplo en Firestore:**
+```json
+{
+  "nombre": "Textiles S.A.",
+  "contacto": "Juan Martínez",
+  "pais": "España",
+  "email": "juan.martinez@textiles.es",
+  "telefono": "+34912345678"
+}
+```
+
+---
+
+### **5. VARIANTE** ⭐ (Clave en ropa)
+**Propósito:** Desglosa cada combinación de talla y color posible, con su propio SKU y stock. Esta separación es **esencial** porque un mismo producto puede tener decenas de variantes.
+
+| Campo | Tipo | Descripción | En Firestore |
+|-------|------|-------------|---------------|
+| `uuid` | string (PK) | Identificador único de variante | Document ID |
+| `producto_id` | string (FK) | Referencia al producto padre | `producto_id` |
+| `talla` | string | Talla (S, M, L, XL, XXL) | `talla` |
+| `color` | string | Color (negro, azul, blanco, rojo) | `color` |
+| `stock` | int | Cantidad disponible | `stock` |
+| `sku` | string | Código único de inventario | `sku` |
+| `precio_extra` | decimal | Precio adicional si aplica (ej. talla XL +5€) | `precio_extra` |
+
+**Ejemplo en Firestore:**
+```json
+{
+  "producto_id": "prod_camisa_oxford",
+  "talla": "M",
+  "color": "Azul marino",
+  "stock": 45,
+  "sku": "CAM-OXF-M-AZ",
+  "precio_extra": 0.00
+}
+{
+  "producto_id": "prod_camisa_oxford",
+  "talla": "XL",
+  "color": "Blanco",
+  "stock": 12,
+  "sku": "CAM-OXF-XL-BL",
+  "precio_extra": 3.00
+}
+```
+
+---
+
+### **6. PEDIDO**
+**Propósito:** Representa cada transacción, vinculada al cliente, con su estado (pendiente, enviado, entregado) y método de pago.
+
+| Campo | Tipo | Descripción | En Firestore |
+|-------|------|-------------|---------------|
+| `uuid` | string (PK) | Identificador único del pedido | Document ID |
+| `cliente_id` | string (FK) | Referencia al cliente | `cliente_id` |
+| `fecha` | date | Fecha del pedido | `fecha` (Timestamp) |
+| `estado` | string | pendiente, pagado, enviado, entregado, cancelado | `estado` |
+| `total` | decimal | Monto total del pedido | `total` |
+| `metodo_pago` | string | tarjeta, paypal, contrareembolso | `metodo_pago` |
+| `direccion_entrega` | map | Dirección completa de envío | `direccion_entrega` |
+
+**Ejemplo en Firestore:**
+```json
+{
+  "cliente_id": "cli_ana_garcia",
+  "fecha": Timestamp(2025, 3, 20),
+  "estado": "pagado",
+  "total": 89.98,
+  "metodo_pago": "tarjeta",
+  "direccion_entrega": {
+    "calle": "Calle Mayor 45",
+    "ciudad": "Madrid",
+    "cp": "28013",
+    "pais": "España"
+  }
+}
+```
+
+---
+
+### **7. DETALLE_PEDIDO** (Tabla puente)
+**Propósito:** Guarda qué variantes y en qué cantidad van en cada pedido, congelando el precio al momento de la venta.
+
+| Campo | Tipo | Descripción | En Firestore |
+|-------|------|-------------|---------------|
+| `uuid` | string (PK) | Identificador único del detalle | Document ID |
+| `pedido_id` | string (FK) | Referencia al pedido | `pedido_id` |
+| `variante_id` | string (FK) | Referencia a la variante específica | `variante_id` |
+| `cantidad` | int | Cantidad de productos | `cantidad` |
+| `precio_unitario` | decimal | Precio al momento de la compra (no el actual) | `precio_unitario` |
+| `nombre_producto` | string | Denormalizado para evitar consultas extra | `nombre_producto` |
+| `talla` | string | Denormalizado (talla comprada) | `talla` |
+| `color` | string | Denormalizado (color comprado) | `color` |
+
+**Ejemplo en Firestore:**
+```json
+{
+  "pedido_id": "ped_20250320_001",
+  "variante_id": "var_camisa_m_azul",
+  "cantidad": 2,
+  "precio_unitario": 39.99,
+  "nombre_producto": "Camisa Oxford Slim Fit",
+  "talla": "M",
+  "color": "Azul marino"
+}
+```
+
+---
+
+### **8. DEVOLUCION**
+**Propósito:** Gestiona devoluciones ligadas a un pedido específico.
+
+| Campo | Tipo | Descripción | En Firestore |
+|-------|------|-------------|---------------|
+| `uuid` | string (PK) | Identificador único de devolución | Document ID |
+| `pedido_id` | string (FK) | Referencia al pedido original | `pedido_id` |
+| `motivo` | string | Razón de la devolución | `motivo` |
+| `estado` | string | solicitada, aprobada, rechazada, completada | `estado` |
+| `fecha` | date | Fecha de solicitud | `fecha` (Timestamp) |
+| `reembolso_total` | decimal | Cantidad a reembolsar | `reembolso_total` |
+
+**Ejemplo en Firestore:**
+```json
+{
+  "pedido_id": "ped_20250320_001",
+  "motivo": "Talla incorrecta - pedí M y llegó S",
+  "estado": "aprobada",
+  "fecha": Timestamp(2025, 3, 25),
+  "reembolso_total": 79.98
+}
+```
+
+---
+
+### **9. INVENTARIO** (Opcional - para auditoría)
+**Propósito:** Lleva el control de existencias por variante con fecha de última actualización, útil para auditorías y trazabilidad.
+
+| Campo | Tipo | Descripción | En Firestore |
+|-------|------|-------------|---------------|
+| `uuid` | string (PK) | Identificador único | Document ID |
+| `variante_id` | string (FK) | Referencia a la variante | `variante_id` |
+| `cantidad` | int | Stock actual | `cantidad` |
+| `ultima_actualizacion` | date | Fecha del último cambio | `ultima_actualizacion` (Timestamp) |
+| `movimiento` | string | entrada, salida, ajuste | `movimiento` |
+
+**Nota:** Esta tabla puede derivarse del campo `stock` en VARIANTE, pero es útil para histórico.
+
+---
+
+## 📊 Resumen de Entidades (Numeradas)
+
+| # | Entidad | Propósito | PK | FK hacia | Firestore Colección |
+|---|---------|-----------|-----|-----------|---------------------|
+| 1 | **CLIENTE** | Usuarios registrados | `uuid` | - | `clientes` |
+| 2 | **PRODUCTO** | Artículo genérico | `uuid` | categoria_id, proveedor_id | `productos` |
+| 3 | **CATEGORIA** | Jerarquía de productos | `uuid` | categoria_padre_id | `categorias` |
+| 4 | **PROVEEDOR** | Origen de productos | `uuid` | - | `proveedores` |
+| 5 | **VARIANTE** | Talla+color específicos | `uuid` | producto_id | `variantes` (subcol) |
+| 6 | **PEDIDO** | Transacción de compra | `uuid` | cliente_id | `pedidos` |
+| 7 | **DETALLE_PEDIDO** | Items comprados | `uuid` | pedido_id, variante_id | `detalles` (subcol) |
+| 8 | **DEVOLUCION** | Devoluciones | `uuid` | pedido_id | `devoluciones` |
+| 9 | **INVENTARIO** | Auditoría de stock | `uuid` | variante_id | `inventario` |
+
+---
+
+## 🔗 Relaciones Clave
+
+```
+CLIENTE (1) ──────< (N) PEDIDO
+                           │
+                           │ (1)
+                           ▼
+PRODUCTO (1) ─────< (N) VARIANTE (N) >──── (N) DETALLE_PEDIDO
+   │                      │
+   │ (N:1)                │ (N:1)
+   ▼                      ▼
+CATEGORIA               INVENTARIO (1:1)
+   │
+   │ (autorreferencia)
+   ▼
+CATEGORIA (padre)
+```
+
+---
+
+## 💡 Notas de Implementación
+
+1. **VARIANTE es la tabla más importante** para ropa porque permite stock independiente por talla/color.
+2. **DETALLE_PEDIDO** guarda `precio_unitario` congelado porque el precio del producto puede cambiar después de la compra.
+3. **INVENTARIO** es opcional si solo usas el campo `stock` en VARIANTE, pero recomendado para auditorías.
+4. En Firestore, usa **subcolecciones** para VARIANTE (dentro de PRODUCTO) y DETALLE_PEDIDO (dentro de PEDIDO) para mejorar rendimiento.
+
+¿Necesitas el código Dart de los modelos de cada una de estas 9 entidades?
